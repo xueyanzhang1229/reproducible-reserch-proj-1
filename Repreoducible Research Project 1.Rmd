@@ -1,0 +1,108 @@
+---
+title: "Repoducible Research Project 1"
+author: "Kaihua Hou"
+date: "7/2/2020"
+output: html_document
+---
+
+``` {r setOptions, echo = FALSE}
+library(knitr)
+library(GlobalOptions)
+opts_chunk$set(cache = TRUE)
+```
+      
+### 1. Loading and preprocessing the data
+#### reading the csv file into R
+
+``` {r readingData}
+activityZip <- download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", destfile="./activity.zip")
+activity <- unzip("activity.zip")
+activityData <- read.csv("activity.csv", header = TRUE)
+```
+
+#### processing the values in the data
+```{r naRemoval, results = "hide"}
+activityData <- na.omit(activityData, cols="steps")
+as.numeric(activityData$steps)
+```
+
+
+### 2. Mean total number of steps taken per day
+#### making a histogram of the total number of steps taken each day
+
+``` {r histogram}
+totalSteps <- aggregate(steps ~ date, activityData, FUN=sum)
+hist(totalSteps$steps,
+     main = "Total Steps per Day",
+     xlab = "Number of Steps")
+```
+
+#### Calculate and report the mean and median total number of steps taken per day
+```{r meanAndMedian}
+mean(totalSteps$steps, na.rm = TRUE)
+median(totalSteps$steps, na.rm = TRUE)
+```
+
+### 3. The average daily activity pattern
+## steps taken, averaged acoss all days
+``` {r }
+library(ggplot2)
+meanStepsByInt <- aggregate(steps ~ interval, activityData, mean)
+ggplot(data = meanStepsByInt, aes(x = interval, y = steps)) +
+  geom_line() +
+  ggtitle("Average Daily Activity Pattern") +
+  xlab("5-minute Interval") +
+  ylab("Average Number of Steps")
+```
+
+### maximum number of steps among the 5-minute intervals
+``` {r }
+maxInt <- meanStepsByInt[which.max(meanStepsByInt$steps),]
+head(totalSteps)
+```
+
+
+### 4. Imputing Missing Values 
+#### report missing values
+``` {r }
+missingVals <- is.na(activityData$steps)
+```
+
+#### creating a new dataset that is equal to the original dataset but with the missing data filled in, and making a histogram of the total number of steps taken each day
+``` {r}
+imp_activityData <- transform(activityData,
+                              steps = ifelse(is.na(activityData$steps),
+                                             meanStepsByInt$steps[match(activityData$interval, meanStepsByInt$interval)], activityData$steps))
+
+impStepsByInt <- aggregate(steps ~ date, imp_activityData, FUN=sum)
+hist(impStepsByInt$steps,
+     main = "Imputed Number of Steps Per Day",
+     xlab = "Number of Steps")
+```
+
+
+### Differences in activity patterns between weekdays and weekends
+#### Make a panel plot containnig a time-series plot of the 5-minute interval and the average number of steps taken across all weekdays or weekends
+```{r}
+DayType <- function(date) {
+  day <- weekdays(date)
+  if (day %in% c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'))
+      return ("weekeday")
+  else if (day %in% c('Saturday', 'Sunday'))
+      return ("weekend")
+  else
+      stop ("Invalid Date Format.")
+}
+imp_activityData$date <- as.Date(imp_activityData$date)
+imp_activityData$day <- sapply(imp_activityData$date, FUN = DayType)
+
+meanStepsByDay <- aggregate(steps ~ interval + day, imp_activityData, mean)
+ggplot(data = meanStepsByDay, aes(x = interval, y = steps)) + 
+  geom_line() +
+  facet_grid(day ~ .) +
+  ggtitle("Average Daily Activity Pattern") +
+  xlab("5-minute Interval") +
+  ylab("Average Number of Steps")
+```
+
+
